@@ -44,16 +44,27 @@ pipeline {
         
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('sonar-server') {
-                    sh 'mvn sonar:sonar'
+                script {
+                    echo "=== Ejecutando análisis SonarQube ==="
+                    withSonarQubeEnv('My SonarQube Server') {
+                        sh 'mvn sonar:sonar'
+                    }
                 }
             }
         }
         
         stage('Quality Gate') {
             steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    waitForQualityGate abortPipeline: true
+                script {
+                    echo "=== Esperando resultado de Quality Gate ==="
+                    timeout(time: 1, unit: 'HOURS') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Quality Gate falló: ${qg.status}"
+                        } else {
+                            echo "✅ Quality Gate pasó correctamente"
+                        }
+                    }
                 }
             }
         }
@@ -62,7 +73,7 @@ pipeline {
     post {
         always {
             echo '=== Limpieza ==='
-            deleteDir()  // En lugar de cleanWs
+            deleteDir()
         }
         failure {
             echo '❌ Pipeline falló'
